@@ -1,12 +1,15 @@
 package com.cmlx.jsoup.controller;
 
 import com.cmlx.jsoup.pojo.dto.UrlDto;
+import com.cmlx.jsoup.service.IFeedService;
 import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class FeedController {
 
+    @Autowired
+    private IFeedService iFeedService;
 
     @RequestMapping("resolveUrl")
     public UrlDto resolveUrl(String url) throws Exception {
@@ -57,9 +62,35 @@ public class FeedController {
             browser.getOptions().setThrowExceptionOnScriptError(false);
             browser.getOptions().setUseInsecureSSL(true);
             HtmlPage htmlPage = browser.getPage(url);
-            browser.waitForBackgroundJavaScript(1000);
+            browser.waitForBackgroundJavaScript(100000);
 
             doc = Jsoup.parse(htmlPage.asXml());
+            //TODO 针对淘宝口令做特殊处理(淘宝分享口令不能用于解析，需要拿到js里面的真正地址)
+            if (basePath.contains("m.tb.cn")) {
+                Elements script = doc.getElementsByTag("script");
+                for (Element element : script) {
+                    boolean flag = false;
+                    /*取得JS变量数组*/
+                    String[] data = element.data().toString().split("var");
+                    /*取得单个JS变量*/
+                    for (String s : data) {
+                        /*获取满足条件的JS变量*/
+                        if (s.contains("url")) {
+                            url = s.split("=", 1)[0];
+                            if (url.contains("taobao.com")) {
+                                url = url.substring(url.indexOf("\'") + 1, url.lastIndexOf("\'"));
+                                flag = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (flag) {
+                        break;
+                    }
+                }
+                UrlDto urlDto = iFeedService.resolveUrlOrdinary(url);
+                return urlDto;
+            }
             title = doc.title();
 /*            String charset = null;
             Elements meta = doc.select("meta");
@@ -89,7 +120,9 @@ public class FeedController {
                     image = image.replace("////", "//");
                 }
             }
-        } catch (Exception e) {
+
+        } catch (
+                Exception e) {
             //接收到错误链接（404页面）
             throw new RuntimeException("URL解析失败");
         }
