@@ -2,6 +2,7 @@ package com.cmlx.jsoup.controller;
 
 import com.cmlx.jsoup.pojo.dto.UrlDto;
 import com.cmlx.jsoup.service.IFeedService;
+import com.cmlx.jsoup.tools.commons.AppUrlConstant;
 import com.cmlx.jsoup.tools.util.HttpUtil;
 import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.NicelyResynchronizingAjaxController;
@@ -51,14 +52,14 @@ public class FeedController {
                 String s = HttpUtil.get(url);
                 doc = Jsoup.parse(s);
             } else {
-                WebClient browser = new WebClient(BrowserVersion.CHROME);
+                WebClient browser = new WebClient();
                 browser.getOptions().setCssEnabled(false);
-                browser.getOptions().setJavaScriptEnabled(true);
+                browser.getOptions().setJavaScriptEnabled(false);
                 browser.setAjaxController(new NicelyResynchronizingAjaxController());
                 browser.getOptions().setThrowExceptionOnScriptError(false);
                 browser.getOptions().setUseInsecureSSL(true);
                 HtmlPage htmlPage = browser.getPage(url);
-                browser.waitForBackgroundJavaScript(10000);
+                browser.waitForBackgroundJavaScript(10);
                 doc = Jsoup.parse(htmlPage.asXml());
             }
             //TODO 针对淘宝口令做特殊处理(淘宝分享口令不能用于解析，需要拿到js里面的真正地址)
@@ -102,9 +103,19 @@ public class FeedController {
                 for (Element element : script) {
                     String data = element.data();
                     if (data.contains("$render_data")) {
-                        title = data.substring(data.indexOf("\"text\": \"") + 9, data.indexOf("\",\n" +
-                                "        \"textLength"));
-                        break;
+                        if (data.contains("textLength")) {
+                            int i = data.indexOf("\"text\": \"");
+                            int i1 = data.lastIndexOf("\"text\": \"");
+                            if (i == i1) {
+                                title = data.substring(data.lastIndexOf("\"text\": \"") + 9, data.indexOf("\",\n" +
+                                        "        \"textLength\""));
+                            }
+                            if (i != i1) {
+                                title = data.substring(data.lastIndexOf("\"text\": \"") + 9, data.indexOf("\",\n" +
+                                        "            \"textLength\""));
+                            }
+                            break;
+                        }
                     }
                 }
                 //TODO 微博的转发动态拿不到content，就拿微博的title
