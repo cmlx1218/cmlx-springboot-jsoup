@@ -16,7 +16,7 @@
 
     <properties>
         <java.version>1.8</java.version>
-        <version.jsoup>1.8.3</version.jsoup>
+        <version.jsoup>1.14.2</version.jsoup>
         <version.htmlunit>2.29</version.htmlunit>
     </properties>
 
